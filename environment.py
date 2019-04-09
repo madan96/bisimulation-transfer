@@ -25,9 +25,13 @@ class Environment(object):
 		self.state2idx = {}
 		self.idx2state = {}
 		self.idx2reward = {}
+		count = 0
 		for i in range(self.gridH):
 			for j in range(self.gridW):
-				idx = i*self.gridW + j
+				idx = count
+				if (i, j) in blocked_positions:
+					continue
+				count += 1
 				self.state2idx[(i, j)] = idx
 				self.idx2state[idx]=(i, j)
 				self.idx2reward[idx] = default_reward
@@ -55,6 +59,55 @@ class Environment(object):
 			(w, h), _ = cv2.getTextSize(text, font, 1, 2)
 				
 			cv2.putText(self.frame, text, (int((x+0.5)*self.scale)-w/2, int((y+0.5)*self.scale+h/2)), font, 1, color, 2, cv2.LINE_AA)
+		
+		# blocked_ids = []
+
+		# for p in blocked_positions:
+		# 	blocked_ids.append(self.state2idx[p])
+
+		tp_matrix = np.zeros((self.state_space - len(blocked_positions), 4, self.state_space - 1))
+
+		for pos, state in self.state2idx.items():
+			# if state in blocked_ids:
+			# 	continue
+			for action in range(self.action_space):
+				proposed = (pos[0] +1, pos[1])
+				if self.check_possible_state(proposed):
+					propose_idx = self.state2idx[proposed]
+					if action == 0:
+						tp_matrix[state][action][propose_idx] = 0.9
+					else:
+						tp_matrix[state][action][propose_idx] = 0.1
+					
+				proposed = (pos[0] - 1, pos[1])
+				if self.check_possible_state(proposed):
+					propose_idx = self.state2idx[proposed]
+					if action == 1:
+						tp_matrix[state][action][propose_idx] = 0.9
+					else:
+						tp_matrix[state][action][propose_idx] = 0.1
+					
+				proposed = (pos[0], pos[1] + 1)
+				if self.check_possible_state(proposed):
+					propose_idx = self.state2idx[proposed]
+					if action == 2:
+						tp_matrix[state][action][propose_idx] = 0.9
+					else:
+						tp_matrix[state][action][propose_idx] = 0.1
+					
+				proposed = (pos[0], pos[1] - 1)	
+				if self.check_possible_state(proposed):
+					propose_idx = self.state2idx[proposed]
+					if action == 3:
+						tp_matrix[state][action][propose_idx] = 0.9
+					else:
+						tp_matrix[state][action][propose_idx] = 0.1
+					
+		# tp_matrix = np.delete(tp_matrix, blocked_ids, axis=0)
+		# tp_matrix = np.delete(tp_matrix, blocked_ids, axis=2)
+		# print (tp_matrix.shape)
+		self.tp_matrix = tp_matrix
+
 
 	def init_start_state(self):
 		
@@ -98,17 +151,31 @@ class Environment(object):
 		if action >= self.action_space:
 			return
 
+		possible_states = []
+		
 		if action == 0:
 			proposed = (self.position[0] +1, self.position[1])
+			if self.check_possible_state(proposed):
+				propose_idx = self.state2idx[proposed]
+				possible_states.append(propose_idx)
 			
 		elif action == 1:
 			proposed = (self.position[0] -1, self.position[1])
+			if self.check_possible_state(proposed):
+				propose_idx = self.state2idx[proposed]
+				possible_states.append(propose_idx)
 			
 		elif action == 2:
 			proposed = (self.position[0], self.position[1] +1)
+			if self.check_possible_state(proposed):
+				propose_idx = self.state2idx[proposed]
+				possible_states.append(propose_idx)
 			
 		elif action == 3:
 			proposed = (self.position[0], self.position[1] -1)	
+			if self.check_possible_state(proposed):
+				propose_idx = self.state2idx[proposed]
+				possible_states.append(propose_idx)
 		
 		y_within = proposed[0] >= 0 and proposed[0] < self.gridH
 		x_within = proposed[1] >= 0 and proposed[1] < self.gridW
@@ -126,8 +193,17 @@ class Environment(object):
 		else:
 			done = False
 			
-		return next_state, reward, done
-		
+		return next_state, reward, done, possible_states
+	
+	def check_possible_state(self, proposed):
+		y_within = proposed[0] >= 0 and proposed[0] < self.gridH
+		x_within = proposed[1] >= 0 and proposed[1] < self.gridW
+		free = proposed not in self.blocked_positions
+		if x_within and y_within and free:
+			return True
+		else:
+			return False
+
 	def reset_state(self):
 		
 		if self.start_position == None:
