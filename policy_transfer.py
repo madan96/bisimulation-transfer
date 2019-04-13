@@ -24,12 +24,19 @@ action_space = src_env.action_space
 src_state_space = src_env.state_space
 src_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, src_state_space, src_env.tp_matrix, src_blocked_positions)
 
-gridH, gridW = 5, 11 
+# gridH, gridW = 5, 11 
+# start_pos = None
+# end_positions = [(2, 8)]
+# end_rewards = [10.0]
+# tgt_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
+# default_reward= -0.2
+
+gridH, gridW = 3, 3
 start_pos = None
-end_positions = [(2, 8)]
-end_rewards = [10.0]
-tgt_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
-default_reward= -0.2
+end_positions = [(1, 2)]
+end_rewards = [5.0]
+tgt_blocked_positions = [(1, 1)]
+default_reward = -0.2
 
 tgt_env = environment.Environment(gridH, gridW, end_positions, end_rewards, tgt_blocked_positions, start_pos, default_reward)
 action_space = tgt_env.action_space
@@ -42,7 +49,7 @@ src_agent.qvalues = np.load('optimal_qvalues_8_new_prob_states.npy')
 src_possible_actions = src_env.get_possible_actions()
 tgt_possible_actions = tgt_env.get_possible_actions()
 
-def compute_d():
+def compute_d(use_reward=True, use_wasserstein=True):
     """
     Computes state-action bisimulation metric
     """
@@ -59,13 +66,16 @@ def compute_d():
             for s2_pos, s2_state in tgt_env.state2idx.items():
                 tgt_env.position = s2_pos
                 for b in range(action_space):
-                    p1 = -np.sum(src_env.tp_matrix[s1_state,a])
-                    p2 = np.sum(tgt_env.tp_matrix[s2_state,b])
-                    c = [p1, p2]
-                    # print (c)
+                    # print(s1_state, src_env.tp_matrix[s1_state, a])
+                    # print(s2_state, tgt_env.tp_matrix[s2_state, b])
                     next_state, reward_b, done, next_possible_states = tgt_env.step(b)
-                    d[s1_state,a,s2_state,b] = math.fabs(reward_a - reward_b) + wasserstein_distance(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b])
-                    b = [d[s1_state,a,s2_state,b]]
+                    d[s1_state,a,s2_state,b] = 0
+                    if use_reward:
+                        d[s1_state,a,s2_state,b] += math.fabs(reward_a - reward_b)
+                    if use_wasserstein:
+                        d[s1_state,a,s2_state,b] += wasserstein_distance(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b])
+                        print(d[s1_state,a,s2_state,b])
+                    # b = [d[s1_state,a,s2_state,b]]
                     # res = linprog(c, A_ub=A, b_ub=b, bounds=bounds, options={"disp": True})
                     # print (res.fun)
                     tgt_env.position = s2_pos
@@ -87,12 +97,15 @@ def compute_dl(d):
     return lax_bisim_state_metric
 
 def laxBisimTransfer(S1, S2):
-    dl_sa = compute_d()
+    dl_sa = compute_d(use_reward=False, use_wasserstein=True)
+    # print (dl_sa[0,0,0,0])
     bisim_state_metric = compute_dl(dl_sa)
-
+    print(bisim_state_metric)
     for t in range(S2):
         s_t = np.argmin(bisim_state_metric[:,t])
+        print("target state: %d, matching source state: %d"%(t, s_t))
         b_t = np.argmin(dl_sa[s_t, src_agent.get_best_action(s_t, src_possible_actions), t])
+        print("source best action: %d, target best action: %d"%(src_agent.get_best_action(s_t, src_possible_actions), b_t))
         qv = src_agent.qvalues[s_t][b_t]
         tgt_agent.update_qvalue(t, b_t, qv)
     
