@@ -71,7 +71,7 @@ class Environment(object):
             # if state in blocked_ids:
             # 	continue
             for action in range(self.action_space):
-                num_valid_neighbors = sum([int(self.check_possible_state(state)) for state in [(pos[0]+1, pos[1]), (pos[0]-1, pos[1]), (pos[0], pos[1]+1), (pos[0], pos[1]-1)]])
+                num_valid_next_states = 1 + sum([int(self.check_possible_state(state)) for state in [(pos[0]+1, pos[1]), (pos[0]-1, pos[1]), (pos[0], pos[1]+1), (pos[0], pos[1]-1)]])
                 total_assigned_prob = 0
                 proposed = (pos[0] +1, pos[1])
                 if self.check_possible_state(proposed):
@@ -79,7 +79,7 @@ class Environment(object):
                     if action == 0:
                         tp_matrix[state][action][propose_idx] = 0.9
                     else:
-                        tp_matrix[state][action][propose_idx] = 0.1/(num_valid_neighbors-1) if num_valid_neighbors>1 else 0.1
+                        tp_matrix[state][action][propose_idx] = 0.1/(num_valid_next_states-1) if num_valid_next_states>1 else 0.1
                     total_assigned_prob += tp_matrix[state][action][propose_idx]
                     
                 proposed = (pos[0] - 1, pos[1])
@@ -88,7 +88,7 @@ class Environment(object):
                     if action == 1:
                         tp_matrix[state][action][propose_idx] = 0.9
                     else:
-                        tp_matrix[state][action][propose_idx] = 0.1/(num_valid_neighbors-1) if num_valid_neighbors>1 else 0.1
+                        tp_matrix[state][action][propose_idx] = 0.1/(num_valid_next_states-1) if num_valid_next_states>1 else 0.1
                     total_assigned_prob += tp_matrix[state][action][propose_idx]
                     
                 proposed = (pos[0], pos[1] + 1)
@@ -97,7 +97,7 @@ class Environment(object):
                     if action == 2:
                         tp_matrix[state][action][propose_idx] = 0.9
                     else:
-                        tp_matrix[state][action][propose_idx] = 0.1/(num_valid_neighbors-1) if num_valid_neighbors>1 else 0.1
+                        tp_matrix[state][action][propose_idx] = 0.1/(num_valid_next_states-1) if num_valid_next_states>1 else 0.1
                     total_assigned_prob += tp_matrix[state][action][propose_idx]
                     
                 proposed = (pos[0], pos[1] - 1)	
@@ -106,7 +106,7 @@ class Environment(object):
                     if action == 3:
                         tp_matrix[state][action][propose_idx] = 0.9
                     else:
-                        tp_matrix[state][action][propose_idx] = 0.1/(num_valid_neighbors-1) if num_valid_neighbors>1 else 0.1
+                        tp_matrix[state][action][propose_idx] = 0.1/(num_valid_next_states-1) if num_valid_next_states>1 else 0.1
                     total_assigned_prob += tp_matrix[state][action][propose_idx]
                 tp_matrix[state][action][state] = 1.0 - total_assigned_prob
 

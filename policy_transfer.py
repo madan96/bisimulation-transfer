@@ -74,6 +74,7 @@ def compute_d(use_reward=True, use_wasserstein=True):
                         d[s1_state,a,s2_state,b] += math.fabs(reward_a - reward_b)
                     if use_wasserstein:
                         d[s1_state,a,s2_state,b] += wasserstein_distance(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b])
+                        print(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b])
                         print(d[s1_state,a,s2_state,b])
                     # b = [d[s1_state,a,s2_state,b]]
                     # res = linprog(c, A_ub=A, b_ub=b, bounds=bounds, options={"disp": True})
