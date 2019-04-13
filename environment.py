@@ -7,7 +7,7 @@ class Environment(object):
 	def __init__(self, gridH, gridW, end_positions, end_rewards, blocked_positions, start_position, default_reward, scale=100):
 		
 		self.action_space = 4
-		self.state_space = gridH * gridW	
+		self.state_space = gridH * gridW - len(blocked_positions)	
 		self.gridH = gridH
 		self.gridW = gridW
 		self.scale = scale 
@@ -65,7 +65,7 @@ class Environment(object):
 		# for p in blocked_positions:
 		# 	blocked_ids.append(self.state2idx[p])
 
-		tp_matrix = np.zeros((self.state_space - len(blocked_positions), 4, self.state_space - 1))
+		tp_matrix = np.zeros((self.state_space, 4, self.state_space))
 
 		for pos, state in self.state2idx.items():
 			# if state in blocked_ids:

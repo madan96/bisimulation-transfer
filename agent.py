@@ -13,7 +13,7 @@ class BaseAgent:
 		self.alpha = alpha
 		self.epsilon = epsilon
 		self.discount = discount
-		self.qvalues = np.zeros((state_space - len(blocked_positions), action_space), np.float32)
+		self.qvalues = np.zeros((state_space, action_space), np.float32)
 		self.tp_matrix = tp_matrix
 		
 	def update(self, state, action, reward, next_state, next_state_possible_actions, next_possible_states, done):
