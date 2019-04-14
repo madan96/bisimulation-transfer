@@ -82,9 +82,8 @@ def compute_d(use_reward=True, use_wasserstein=True):
                     print("target state: ", s2_state, "| target action: ", b, "| P(t'): ", tgt_env.tp_matrix[s2_state, b])
                     next_state, reward_b, done, next_possible_states = tgt_env.step(b)
                     # d[s1_state,a,s2_state,b] = 0
-                    if use_reward:
-                        # d[s1_state,a,s2_state,b] += math.fabs(reward_a - reward_b)
-                        reward_matrix_tmp[s1_state, a, s2_state, b] = math.fabs(reward_a - reward_b)
+                    # d[s1_state,a,s2_state,b] += math.fabs(reward_a - reward_b)
+                    reward_matrix_tmp[s1_state, a, s2_state, b] = math.fabs(reward_a - reward_b)
                     # b = [d[s1_state,a,s2_state,b]]
                     # res = linprog(c, A_ub=A, b_ub=b, bounds=bounds, options={"disp": True})
                     # print (res.fun)
@@ -111,7 +110,10 @@ def compute_d(use_reward=True, use_wasserstein=True):
                     next_state, reward_b, done, next_possible_states = tgt_env.step(b)
                     # print (src_env.tp_matrix[s1_state,a].shape)
                     # print (tgt_env.tp_matrix[s2_state,b].shape)
-                    d[s1_state,a,s2_state,b] = reward_matrix_tmp[s1_state, a, s2_state, b] + emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], reward_matrix)
+                    if use_reward:
+                        d[s1_state,a,s2_state,b] += reward_matrix_tmp[s1_state, a, s2_state, b]
+                    if use_wasserstein:
+                        d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], reward_matrix)
                     tgt_env.start_position = s2_pos
                     tgt_env.position = s2_pos
     return d
@@ -155,7 +157,7 @@ laxBisimTransfer(src_state_space, tgt_state_space, debugging=True)
 tgt_env.render(tgt_agent.qvalues)
 state = tgt_env.get_state()
 
-for i in range(1000):
+for i in range(10):
     possible_actions = tgt_env.get_possible_actions()
     action = tgt_agent.get_best_action(state, possible_actions)
     next_state, reward, done, next_possible_states = tgt_env.step(action)
