@@ -3,6 +3,7 @@ import numpy as np
 from scipy.optimize import linprog
 from scipy.stats import wasserstein_distance
 import time
+from pyemd import emd
 
 import environment
 import agent
@@ -15,9 +16,16 @@ discount = 0.99
 gridH, gridW = 3, 3
 start_pos = None
 end_positions = [(1, 2)]
-end_rewards = [5.0]
+end_rewards = [1.0]
 src_blocked_positions = [(1, 1)]
-default_reward = -0.2
+default_reward = 0.0
+
+# gridH, gridW = 5, 11 
+# start_pos = None
+# end_positions = [(2, 8)]
+# end_rewards = [10.0]
+# src_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
+# default_reward= -10.0
 
 src_env = environment.Environment(gridH, gridW, end_positions, end_rewards, src_blocked_positions, start_pos, default_reward)
 action_space = src_env.action_space
@@ -29,14 +37,14 @@ src_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, src_sta
 # end_positions = [(2, 8)]
 # end_rewards = [10.0]
 # tgt_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
-# default_reward= -0.2
+# default_reward= -10.0
 
 gridH, gridW = 3, 3
 start_pos = None
 end_positions = [(1, 2)]
-end_rewards = [5.0]
+end_rewards = [1.0]
 tgt_blocked_positions = [(1, 1)]
-default_reward = -0.2
+default_reward = 0.0
 
 tgt_env = environment.Environment(gridH, gridW, end_positions, end_rewards, tgt_blocked_positions, start_pos, default_reward)
 action_space = tgt_env.action_space
@@ -58,27 +66,54 @@ def compute_d(use_reward=True, use_wasserstein=True):
     bounds = [(-1, 1), (-1, 1)]
 
     d = np.zeros((src_state_space, action_space, tgt_state_space, action_space))
+    reward_matrix_tmp = np.zeros((src_state_space, 4, tgt_state_space, 4))
+    reward_matrix = np.zeros((src_state_space, tgt_state_space))
     for s1_pos, s1_state in src_env.state2idx.items():
         src_env.position = s1_pos
-        for a in range(action_space):
-            next_state, reward_a, done, next_possible_states = src_env.step(a)
-            src_env.position = s1_pos
-            for s2_pos, s2_state in tgt_env.state2idx.items():
-                tgt_env.position = s2_pos
+        src_env.start_position = s1_pos
+        for s2_pos, s2_state in tgt_env.state2idx.items():
+            tgt_env.position = s2_pos
+            tgt_env.start_position = s2_pos
+            for a in range(action_space):
+                next_state, reward_a, done, next_possible_states = src_env.step(a)
+                src_env.start_position = s1_pos
+                src_env.position = s1_pos
                 for b in range(action_space):
                     # print(s1_state, src_env.tp_matrix[s1_state, a])
                     # print(s2_state, tgt_env.tp_matrix[s2_state, b])
                     next_state, reward_b, done, next_possible_states = tgt_env.step(b)
-                    d[s1_state,a,s2_state,b] = 0
+                    # d[s1_state,a,s2_state,b] = 0
                     if use_reward:
-                        d[s1_state,a,s2_state,b] += math.fabs(reward_a - reward_b)
-                    if use_wasserstein:
-                        d[s1_state,a,s2_state,b] += wasserstein_distance(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b])
-                        print(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b])
-                        print(d[s1_state,a,s2_state,b])
+                        # d[s1_state,a,s2_state,b] += math.fabs(reward_a - reward_b)
+                        reward_matrix_tmp[s1_state, a, s2_state, b] = math.fabs(reward_a - reward_b)
                     # b = [d[s1_state,a,s2_state,b]]
                     # res = linprog(c, A_ub=A, b_ub=b, bounds=bounds, options={"disp": True})
                     # print (res.fun)
+                    tgt_env.start_position = s2_pos
+                    tgt_env.position = s2_pos
+    
+    for s1_pos, s1_state in src_env.state2idx.items():
+        for s2_pos, s2_state in tgt_env.state2idx.items():
+            reward_matrix[s1_state, s2_state] = np.max(reward_matrix_tmp[s1_state,:,s2_state,:])
+
+    # np.fill_diagonal(reward_matrix, 0)
+    print (reward_matrix)
+    for s1_pos, s1_state in src_env.state2idx.items():
+        src_env.position = s1_pos
+        src_env.start_position = s1_pos
+        for s2_pos, s2_state in tgt_env.state2idx.items():
+            tgt_env.position = s2_pos
+            tgt_env.start_position = s2_pos
+            for a in range(action_space):
+                next_state, reward_a, done, next_possible_states = src_env.step(a)
+                src_env.start_position = s1_pos
+                src_env.position = s1_pos
+                for b in range(action_space):
+                    next_state, reward_b, done, next_possible_states = tgt_env.step(b)
+                    # print (src_env.tp_matrix[s1_state,a].shape)
+                    # print (tgt_env.tp_matrix[s2_state,b].shape)
+                    d[s1_state,a,s2_state,b] = reward_matrix_tmp[s1_state, a, s2_state, b] + emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], reward_matrix)
+                    tgt_env.start_position = s2_pos
                     tgt_env.position = s2_pos
     return d
 
@@ -98,8 +133,8 @@ def compute_dl(d):
     return lax_bisim_state_metric
 
 def laxBisimTransfer(S1, S2):
-    dl_sa = compute_d(use_reward=False, use_wasserstein=True)
-    # print (dl_sa[0,0,0,0])
+    dl_sa = compute_d(use_reward=True, use_wasserstein=True)
+    print (dl_sa[0,0,0,0])
     bisim_state_metric = compute_dl(dl_sa)
     print(bisim_state_metric)
     for t in range(S2):
@@ -127,6 +162,6 @@ for i in range(1000):
     if done == True:	
         tgt_env.reset_state()
         tgt_env.render(tgt_agent.qvalues)
-        time.sleep(0.5)
+        time.sleep(0.1)
         state = tgt_env.get_state()
         continue
