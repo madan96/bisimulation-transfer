@@ -67,8 +67,6 @@ class Environment(object):
         # for p in blocked_positions:
         # 	blocked_ids.append(self.state2idx[p])
         self.generate_tp_matrix()
-
-                    
         # tp_matrix = np.delete(tp_matrix, blocked_ids, axis=0)
         # tp_matrix = np.delete(tp_matrix, blocked_ids, axis=2)
         # print (tp_matrix.shape)
