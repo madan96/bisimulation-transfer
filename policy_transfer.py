@@ -79,7 +79,7 @@ def compute_d(use_reward=True, use_wasserstein=True):
                 src_env.position = s1_pos
                 for b in range(action_space):
                     print("source state: ", s1_state, "| source action: ", a, "| P(s'): ", src_env.tp_matrix[s1_state, a])
-                    print("source state: ", s2_state, "| target action: ", b, "| P(t'): ", tgt_env.tp_matrix[s2_state, b])
+                    print("target state: ", s2_state, "| target action: ", b, "| P(t'): ", tgt_env.tp_matrix[s2_state, b])
                     next_state, reward_b, done, next_possible_states = tgt_env.step(b)
                     # d[s1_state,a,s2_state,b] = 0
                     if use_reward:
@@ -131,20 +131,26 @@ def compute_dl(d):
             lax_bisim_state_metric[i][j] = dl_st
     return lax_bisim_state_metric
 
-def laxBisimTransfer(S1, S2):
+def laxBisimTransfer(S1, S2, debugging=False):
     dl_sa = compute_d(use_reward=True, use_wasserstein=True)
     print (dl_sa[0,0,0,0])
     bisim_state_metric = compute_dl(dl_sa)
     print(bisim_state_metric)
+    if debugging:
+        num_misclassified_states = 0  # to be used only when source and target domains are same
     for t in range(S2):
         s_t = np.argmin(bisim_state_metric[:,t])
+        if debugging:
+            num_misclassified_states += int(t!=s_t)
         print("target state: %d, matching source state: %d"%(t, s_t))
         b_t = np.argmin(dl_sa[s_t, src_agent.get_best_action(s_t, src_possible_actions), t])
         print("source best action: %d, target best action: %d"%(src_agent.get_best_action(s_t, src_possible_actions), b_t))
         qv = src_agent.qvalues[s_t][b_t]
         tgt_agent.update_qvalue(t, b_t, qv)
+    if debugging:
+        print("State misclassification rate: %f percent"%(100*num_misclassified_states/S2))
     
-laxBisimTransfer(src_state_space, tgt_state_space)
+laxBisimTransfer(src_state_space, tgt_state_space, debugging=True)
 
 tgt_env.render(tgt_agent.qvalues)
 state = tgt_env.get_state()
