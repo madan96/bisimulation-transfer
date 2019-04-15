@@ -59,8 +59,7 @@ class BaseAgent:
 		self.qvalues[state][action] = value
 		return
    
-	def get_value(self, state, possible_actions):
-		
+	def get_value(self, state, next_state, action, next_state_possible_actions, next_possible_states):		
 		pass
 
 # ------------------------------------------------------------------------------------------

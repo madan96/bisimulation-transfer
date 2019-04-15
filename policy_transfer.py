@@ -2,10 +2,12 @@ import math
 import numpy as np
 from scipy.optimize import linprog
 from scipy.stats import wasserstein_distance
+from scipy.spatial import distance
 import time
 import environment
 import agent
 from pyemd import emd
+import pdb
 
 alpha = 0.2
 epsilon = 0.05
@@ -51,12 +53,13 @@ tgt_state_space = tgt_env.state_space
 tgt_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, tgt_state_space, tgt_env.tp_matrix, tgt_blocked_positions)
 
 src_agent.qvalues = np.load('optimal_qvalues_8_new_prob_states.npy')
+# src_agent.qvalues = np.load('optimal_qvalues_44_new_prob_states.npy')
 # tgt_qval = np.zeros((tgt_env.state_space, 4))
 
 src_possible_actions = src_env.get_possible_actions()
 tgt_possible_actions = tgt_env.get_possible_actions()
 
-def compute_d(use_reward=True, use_wasserstein=True):
+def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_manhattan_as_d=True):
     """
     Computes state-action bisimulation metric
     """
@@ -78,8 +81,8 @@ def compute_d(use_reward=True, use_wasserstein=True):
                 src_env.start_position = s1_pos
                 src_env.position = s1_pos
                 for b in range(action_space):
-                    print("source state: ", s1_state, "| source action: ", a, "| P(s'): ", src_env.tp_matrix[s1_state, a])
-                    print("target state: ", s2_state, "| target action: ", b, "| P(t'): ", tgt_env.tp_matrix[s2_state, b])
+                    # print("source state: ", s1_state, "| source action: ", a, "| P(s'): ", src_env.tp_matrix[s1_state, a])
+                    # print("target state: ", s2_state, "| target action: ", b, "| P(t'): ", tgt_env.tp_matrix[s2_state, b])
                     next_state, reward_b, done, next_possible_states = tgt_env.step(b)
                     # d[s1_state,a,s2_state,b] = 0
                     # d[s1_state,a,s2_state,b] += math.fabs(reward_a - reward_b)
@@ -94,8 +97,15 @@ def compute_d(use_reward=True, use_wasserstein=True):
         for s2_pos, s2_state in tgt_env.state2idx.items():
             reward_matrix[s1_state, s2_state] = np.max(reward_matrix_tmp[s1_state,:,s2_state,:])
 
+    # Supply Manhattan distance as an alternative to reward distance for calculation of EMD
+    # DO NOT USE when S1 and S2 are of different sizes
+    manhattan_distance = np.zeros((src_env.state_space, tgt_env.state_space))
+    for s1_pos, s1_state in src_env.state2idx.items():
+        for s2_pos, s2_state in tgt_env.state2idx.items():
+            manhattan_distance[s1_state, s2_state] = distance.cityblock(s1_pos, s2_pos)
+
     # np.fill_diagonal(reward_matrix, 0)
-    print (reward_matrix)
+    # print (reward_matrix)
     for s1_pos, s1_state in src_env.state2idx.items():
         src_env.position = s1_pos
         src_env.start_position = s1_pos
@@ -113,7 +123,11 @@ def compute_d(use_reward=True, use_wasserstein=True):
                     if use_reward:
                         d[s1_state,a,s2_state,b] += reward_matrix_tmp[s1_state, a, s2_state, b]
                     if use_wasserstein:
-                        d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], reward_matrix)
+                        # pdb.set_trace()
+                        if use_reward_as_d:
+                            d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], reward_matrix)
+                        elif use_manhattan_as_d:
+                            d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], manhattan_distance)
                     tgt_env.start_position = s2_pos
                     tgt_env.position = s2_pos
     return d
@@ -134,7 +148,7 @@ def compute_dl(d):
     return lax_bisim_state_metric
 
 def laxBisimTransfer(S1, S2, debugging=False):
-    dl_sa = compute_d(use_reward=True, use_wasserstein=True)
+    dl_sa = compute_d(use_reward=False, use_wasserstein=True, use_manhattan_as_d=True)
     print (dl_sa[0,0,0,0])
     bisim_state_metric = compute_dl(dl_sa)
     print(bisim_state_metric)
@@ -157,7 +171,7 @@ laxBisimTransfer(src_state_space, tgt_state_space, debugging=True)
 tgt_env.render(tgt_agent.qvalues)
 state = tgt_env.get_state()
 
-for i in range(10):
+for i in range(1000):
     possible_actions = tgt_env.get_possible_actions()
     action = tgt_agent.get_best_action(state, possible_actions)
     next_state, reward, done, next_possible_states = tgt_env.step(action)
