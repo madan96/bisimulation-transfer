@@ -148,7 +148,7 @@ def compute_dl(d):
     return lax_bisim_state_metric
 
 def laxBisimTransfer(S1, S2, debugging=False):
-    dl_sa = compute_d(use_reward=False, use_wasserstein=True, use_manhattan_as_d=True)
+    dl_sa = compute_d(use_reward=True, use_wasserstein=True, use_manhattan_as_d=True)
     print (dl_sa[0,0,0,0])
     bisim_state_metric = compute_dl(dl_sa)
     print(bisim_state_metric)
