@@ -109,26 +109,17 @@ def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_
     # print (reward_matrix)
     sum1 = np.sum(dist_matrix)
     for s1_pos, s1_state in src_env.state2idx.items():
-        src_env.position = s1_pos
-        src_env.start_position = s1_pos
         for s2_pos, s2_state in tgt_env.state2idx.items():
-            tgt_env.position = s2_pos
-            tgt_env.start_position = s2_pos
-            for a in range(action_space):
-                next_state, reward_a, done, next_possible_states = src_env.step(a)
-                src_env.start_position = s1_pos
-                src_env.position = s1_pos
-                next_state, reward_b, done, next_possible_states = tgt_env.step(a)
+            while True:
+                val = -10.
                 ctr = 0
-                while True:
-                    # print ("Iteration: ", ctr)
-                    new_val = reward_matrix[s1_state, s2_state] + emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,a], dist_matrix)
-                    if math.fabs(new_val - dist_matrix[s1_state, s2_state]) < 0.1:
-                        break
-                    dist_matrix[s1_state, s2_state] = new_val
-                    ctr += 1
-                tgt_env.start_position = s2_pos
-                tgt_env.position = s2_pos
+                for a in range(action_space):
+                    new_val = reward_matrix_tmp[s1_state, a, s2_state, a] + emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,a], dist_matrix)
+                    val = max(new_val, val)
+                ctr += 1
+                if math.fabs(val - dist_matrix[s1_state, s2_state]) < 0.1:
+                    break
+                dist_matrix[s1_state, s2_state] = val
 
     print ("Updated: ", sum1 - np.sum(dist_matrix))
     for s1_pos, s1_state in src_env.state2idx.items():
