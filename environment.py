@@ -16,6 +16,8 @@ class Environment(object):
         self.end_positions = end_positions
         self.end_rewards = end_rewards
         self.blocked_positions = blocked_positions
+
+        self.tp_matrix = np.zeros((self.state_space, self.action_space, self.state_space))
         
         self.start_position = start_position
         if self.start_position == None:
@@ -64,59 +66,48 @@ class Environment(object):
 
         # for p in blocked_positions:
         # 	blocked_ids.append(self.state2idx[p])
-
-        tp_matrix = np.zeros((self.state_space, 4, self.state_space))
-
-        for pos, state in self.state2idx.items():
-            # if state in blocked_ids:
-            # 	continue
-            for action in range(self.action_space):
-                num_valid_next_states = sum([int(self.check_possible_state(state)) for state in [(pos[0]+1, pos[1]), (pos[0]-1, pos[1]), (pos[0], pos[1]+1), (pos[0], pos[1]-1)]])
-                print  ("num: ", num_valid_next_states)
-                total_assigned_prob = 0
-                proposed = (pos[0] + 1, pos[1])
-                if self.check_possible_state(proposed):
-                    propose_idx = self.state2idx[proposed]
-                    if action == 0:
-                        tp_matrix[state][action][propose_idx] = 0.9
-                    else:
-                        tp_matrix[state][action][propose_idx] = 0.1 / num_valid_next_states if num_valid_next_states > 1 else 0.1
-                    total_assigned_prob += tp_matrix[state][action][propose_idx]
-                    
-                proposed = (pos[0] - 1, pos[1])
-                if self.check_possible_state(proposed):
-                    propose_idx = self.state2idx[proposed]
-                    if action == 1:
-                        tp_matrix[state][action][propose_idx] = 0.9
-                    else:
-                        tp_matrix[state][action][propose_idx] = 0.1 / num_valid_next_states if num_valid_next_states > 1 else 0.1
-                    total_assigned_prob += tp_matrix[state][action][propose_idx]
-                    
-                proposed = (pos[0], pos[1] + 1)
-                if self.check_possible_state(proposed):
-                    propose_idx = self.state2idx[proposed]
-                    if action == 2:
-                        tp_matrix[state][action][propose_idx] = 0.9
-                    else:
-                        tp_matrix[state][action][propose_idx] = 0.1 / num_valid_next_states if num_valid_next_states > 1 else 0.1
-                    total_assigned_prob += tp_matrix[state][action][propose_idx]
-                    
-                proposed = (pos[0], pos[1] - 1)	
-                if self.check_possible_state(proposed):
-                    propose_idx = self.state2idx[proposed]
-                    if action == 3:
-                        tp_matrix[state][action][propose_idx] = 0.9
-                    else:
-                        tp_matrix[state][action][propose_idx] = 0.1 / num_valid_next_states if num_valid_next_states > 1 else 0.1
-                    total_assigned_prob += tp_matrix[state][action][propose_idx]
-
-                tp_matrix[state][action][state] = 1.0 - total_assigned_prob
-                    
+        self.generate_tp_matrix()
         # tp_matrix = np.delete(tp_matrix, blocked_ids, axis=0)
         # tp_matrix = np.delete(tp_matrix, blocked_ids, axis=2)
         # print (tp_matrix.shape)
-        self.tp_matrix = tp_matrix
 
+    def get_num_valid_neighbors(self, pos):
+        return sum([int(self.check_possible_state(neighbor))
+            for neighbor in [(pos[0]+1, pos[1]), (pos[0]-1, pos[1]), (pos[0], pos[1]+1), (pos[0], pos[1]-1)]])
+
+    def get_valid_neighbors(self, pos):
+        return [self.state2idx[neighbor] for neighbor in [(pos[0]+1, pos[1]), (pos[0]-1, pos[1]), (pos[0], pos[1]+1), (pos[0], pos[1]-1)]
+            if self.check_possible_state(neighbor)]
+
+    def fill_tp_matrix(self, pos, action):
+        curr_state = self.state2idx[pos]
+        valid_neighbors = self.get_valid_neighbors(pos)
+        candidate_next_pos_among_neighbors = [(pos[0]+1, pos[1]), (pos[0]-1, pos[1]), (pos[0], pos[1]+1), (pos[0], pos[1]-1)]
+        intended_candidate_next_pos = candidate_next_pos_among_neighbors[action]
+        intended_candidate_next_state = self.state2idx[intended_candidate_next_pos] if intended_candidate_next_pos in self.state2idx.keys() else -1
+        # pdb.set_trace()
+        if intended_candidate_next_state in valid_neighbors:
+            self.tp_matrix[curr_state][action][intended_candidate_next_state] = 0.9
+            other_candidate_next_states = valid_neighbors
+            other_candidate_next_states.remove(intended_candidate_next_state)
+            if other_candidate_next_states:
+                other_candidate_next_states.append(curr_state)
+            else:
+                other_candidate_next_states = [curr_state]
+            for next_state in other_candidate_next_states:
+                self.tp_matrix[curr_state][action][next_state] = 0.1/len(other_candidate_next_states)
+        else:  # agent hit wall
+            self.tp_matrix[curr_state][action][curr_state] = 0.9
+            other_candidate_next_states = valid_neighbors
+            other_candidate_next_states.append(curr_state)
+            for next_state in other_candidate_next_states:
+                self.tp_matrix[curr_state][action][next_state] += 0.1/len(other_candidate_next_states)
+
+
+    def generate_tp_matrix(self):
+        for pos in self.state2idx.keys():
+            for action in range(self.action_space):
+                self.fill_tp_matrix(pos, action)
 
     def init_start_state(self):
         
