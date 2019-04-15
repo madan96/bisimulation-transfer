@@ -24,9 +24,9 @@ default_reward = 0.0
 # gridH, gridW = 5, 11 
 # start_pos = None
 # end_positions = [(2, 8)]
-# end_rewards = [10.0]
+# end_rewards = [1.0]
 # src_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
-# default_reward= -10.0
+# default_reward= 0.0
 
 src_env = environment.Environment(gridH, gridW, end_positions, end_rewards, src_blocked_positions, start_pos, default_reward)
 action_space = src_env.action_space
@@ -36,9 +36,9 @@ src_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, src_sta
 # gridH, gridW = 5, 11 
 # start_pos = None
 # end_positions = [(2, 8)]
-# end_rewards = [10.0]
+# end_rewards = [1.0]
 # tgt_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
-# default_reward= -10.0
+# default_reward= 0.0
 
 gridH, gridW = 3, 3
 start_pos = None
@@ -59,7 +59,7 @@ src_agent.qvalues = np.load('optimal_qvalues_8_new_prob_states.npy')
 src_possible_actions = src_env.get_possible_actions()
 tgt_possible_actions = tgt_env.get_possible_actions()
 
-def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_manhattan_as_d=True):
+def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_manhattan_as_d=False, solver=False):
     """
     Computes state-action bisimulation metric
     """
@@ -68,6 +68,7 @@ def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_
     bounds = [(-1, 1), (-1, 1)]
 
     d = np.zeros((src_state_space, action_space, tgt_state_space, action_space))
+    dist_matrix = np.random.rand(src_state_space, tgt_state_space)
     reward_matrix_tmp = np.zeros((src_state_space, 4, tgt_state_space, 4))
     reward_matrix = np.zeros((src_state_space, tgt_state_space))
     for s1_pos, s1_state in src_env.state2idx.items():
@@ -106,6 +107,30 @@ def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_
 
     # np.fill_diagonal(reward_matrix, 0)
     # print (reward_matrix)
+    sum1 = np.sum(dist_matrix)
+    for s1_pos, s1_state in src_env.state2idx.items():
+        src_env.position = s1_pos
+        src_env.start_position = s1_pos
+        for s2_pos, s2_state in tgt_env.state2idx.items():
+            tgt_env.position = s2_pos
+            tgt_env.start_position = s2_pos
+            for a in range(action_space):
+                next_state, reward_a, done, next_possible_states = src_env.step(a)
+                src_env.start_position = s1_pos
+                src_env.position = s1_pos
+                next_state, reward_b, done, next_possible_states = tgt_env.step(a)
+                ctr = 0
+                while True:
+                    # print ("Iteration: ", ctr)
+                    new_val = reward_matrix[s1_state, s2_state] + emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,a], dist_matrix)
+                    if math.fabs(new_val - dist_matrix[s1_state, s2_state]) < 0.1:
+                        break
+                    dist_matrix[s1_state, s2_state] = new_val
+                    ctr += 1
+                tgt_env.start_position = s2_pos
+                tgt_env.position = s2_pos
+
+    print ("Updated: ", sum1 - np.sum(dist_matrix))
     for s1_pos, s1_state in src_env.state2idx.items():
         src_env.position = s1_pos
         src_env.start_position = s1_pos
@@ -128,6 +153,8 @@ def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_
                             d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], reward_matrix)
                         elif use_manhattan_as_d:
                             d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], manhattan_distance)
+                        elif solver:
+                            d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], dist_matrix)
                     tgt_env.start_position = s2_pos
                     tgt_env.position = s2_pos
     return d
@@ -148,7 +175,7 @@ def compute_dl(d):
     return lax_bisim_state_metric
 
 def laxBisimTransfer(S1, S2, debugging=False):
-    dl_sa = compute_d(use_reward=True, use_wasserstein=True, use_manhattan_as_d=True)
+    dl_sa = compute_d(use_reward=True, use_wasserstein=True, use_manhattan_as_d=False, solver=True)
     print (dl_sa[0,0,0,0])
     bisim_state_metric = compute_dl(dl_sa)
     print(bisim_state_metric)
