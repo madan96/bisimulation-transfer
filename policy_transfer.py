@@ -33,19 +33,19 @@ action_space = src_env.action_space
 src_state_space = src_env.state_space
 src_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, src_state_space, src_env.tp_matrix, src_blocked_positions)
 
-# gridH, gridW = 5, 11 
-# start_pos = None
-# end_positions = [(2, 8)]
-# end_rewards = [1.0]
-# tgt_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
-# default_reward= 0.0
-
-gridH, gridW = 3, 3
+gridH, gridW = 5, 11 
 start_pos = None
-end_positions = [(1, 2)]
+end_positions = [(2, 8)]
 end_rewards = [1.0]
-tgt_blocked_positions = [(1, 1)]
-default_reward = 0.0
+tgt_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
+default_reward= 0.0
+
+# gridH, gridW = 3, 3
+# start_pos = None
+# end_positions = [(1, 2)]
+# end_rewards = [1.0]
+# tgt_blocked_positions = [(1, 1)]
+# default_reward = 0.0
 
 tgt_env = environment.Environment(gridH, gridW, end_positions, end_rewards, tgt_blocked_positions, start_pos, default_reward)
 action_space = tgt_env.action_space
@@ -114,8 +114,9 @@ def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_
                 val = -10.
                 ctr = 0
                 for a in range(action_space):
-                    new_val = reward_matrix_tmp[s1_state, a, s2_state, a] + emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,a], dist_matrix)
-                    val = max(new_val, val)
+                    for b in range(action_space):
+                        new_val = reward_matrix_tmp[s1_state, a, s2_state, b] + emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], dist_matrix)
+                        val = max(new_val, val)
                 ctr += 1
                 if math.fabs(val - dist_matrix[s1_state, s2_state]) < 0.1:
                     break
