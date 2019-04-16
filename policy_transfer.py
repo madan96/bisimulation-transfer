@@ -82,11 +82,7 @@ def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_
                 src_env.start_position = s1_pos
                 src_env.position = s1_pos
                 for b in range(action_space):
-                    # print("source state: ", s1_state, "| source action: ", a, "| P(s'): ", src_env.tp_matrix[s1_state, a])
-                    # print("target state: ", s2_state, "| target action: ", b, "| P(t'): ", tgt_env.tp_matrix[s2_state, b])
                     next_state, reward_b, done, next_possible_states = tgt_env.step(b)
-                    # d[s1_state,a,s2_state,b] = 0
-                    # d[s1_state,a,s2_state,b] += math.fabs(reward_a - reward_b)
                     reward_matrix_tmp[s1_state, a, s2_state, b] = math.fabs(reward_a - reward_b)
                     # b = [d[s1_state,a,s2_state,b]]
                     # res = linprog(c, A_ub=A, b_ub=b, bounds=bounds, options={"disp": True})
@@ -109,13 +105,13 @@ def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_
     # print (reward_matrix)
     sum1 = np.sum(dist_matrix)
     for s1_pos, s1_state in src_env.state2idx.items():
-        for s2_pos, s2_state in tgt_env.state2idx.items():
+        for s2_pos, s2_state in sorted(tgt_env.state2idx.items()):
             while True:
                 val = -10.
                 ctr = 0
                 for a in range(action_space):
                     for b in range(action_space):
-                        new_val = reward_matrix_tmp[s1_state, a, s2_state, b] + emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], dist_matrix)
+                        new_val = reward_matrix_tmp[s1_state, a, s2_state, b] + 0.9 * emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], dist_matrix)
                         val = max(new_val, val)
                 ctr += 1
                 if math.fabs(val - dist_matrix[s1_state, s2_state]) < 0.1:
@@ -124,19 +120,9 @@ def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_
 
     print ("Updated: ", sum1 - np.sum(dist_matrix))
     for s1_pos, s1_state in src_env.state2idx.items():
-        src_env.position = s1_pos
-        src_env.start_position = s1_pos
         for s2_pos, s2_state in tgt_env.state2idx.items():
-            tgt_env.position = s2_pos
-            tgt_env.start_position = s2_pos
             for a in range(action_space):
-                next_state, reward_a, done, next_possible_states = src_env.step(a)
-                src_env.start_position = s1_pos
-                src_env.position = s1_pos
                 for b in range(action_space):
-                    next_state, reward_b, done, next_possible_states = tgt_env.step(b)
-                    # print (src_env.tp_matrix[s1_state,a].shape)
-                    # print (tgt_env.tp_matrix[s2_state,b].shape)
                     if use_reward:
                         d[s1_state,a,s2_state,b] += reward_matrix_tmp[s1_state, a, s2_state, b]
                     if use_wasserstein:
@@ -147,8 +133,6 @@ def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_
                             d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], manhattan_distance)
                         elif solver:
                             d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], dist_matrix)
-                    tgt_env.start_position = s2_pos
-                    tgt_env.position = s2_pos
     return d
 
 
@@ -168,9 +152,7 @@ def compute_dl(d):
 
 def laxBisimTransfer(S1, S2, debugging=False):
     dl_sa = compute_d(use_reward=True, use_wasserstein=True, use_manhattan_as_d=False, solver=True)
-    print (dl_sa[0,0,0,0])
     bisim_state_metric = compute_dl(dl_sa)
-    print(bisim_state_metric)
     if debugging:
         num_misclassified_states = 0  # to be used only when source and target domains are same
     for t in range(S2):
