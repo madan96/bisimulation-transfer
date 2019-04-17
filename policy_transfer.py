@@ -14,19 +14,19 @@ epsilon = 0.05
 discount = 0.99
 
 
-gridH, gridW = 3, 3
-start_pos = None
-end_positions = [(1, 2)]
-end_rewards = [1.0]
-src_blocked_positions = [(1, 1)]
-default_reward = 0.0
-
-# gridH, gridW = 5, 11 
+# gridH, gridW = 3, 3
 # start_pos = None
-# end_positions = [(2, 8)]
+# end_positions = [(1, 2)]
 # end_rewards = [1.0]
-# src_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
-# default_reward= 0.0
+# src_blocked_positions = [(1, 1)]
+# default_reward = 0.0
+
+gridH, gridW = 5, 11 
+start_pos = None
+end_positions = [(2, 8)]
+end_rewards = [1.0]
+src_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
+default_reward= 0.0
 
 src_env = environment.Environment(gridH, gridW, end_positions, end_rewards, src_blocked_positions, start_pos, default_reward)
 action_space = src_env.action_space
@@ -52,7 +52,7 @@ action_space = tgt_env.action_space
 tgt_state_space = tgt_env.state_space
 tgt_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, tgt_state_space, tgt_env.tp_matrix, tgt_blocked_positions)
 
-src_agent.qvalues = np.load('optimal_qvalues_8_new_prob_states.npy')
+src_agent.qvalues = np.load('optimal_qvalues_44_new_prob_states.npy')
 # src_agent.qvalues = np.load('optimal_qvalues_44_new_prob_states.npy')
 # tgt_qval = np.zeros((tgt_env.state_space, 4))
 
@@ -109,38 +109,18 @@ def compute_d(use_reward=True, use_wasserstein=True, use_reward_as_d=False, use_
     while True:
         for s1_pos, s1_state in src_env.state2idx.items():
             for s2_pos, s2_state in sorted(tgt_env.state2idx.items()):
-                val = -10.
-                ctr = 0
                 for a in range(action_space):
                     for b in range(action_space):
                         new_val = reward_matrix_tmp[s1_state, a, s2_state, b] + 0.9 * emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], dist_matrix)
-                        val = max(new_val, val)
-                ctr += 1
-                if math.fabs(val - dist_matrix[s1_state, s2_state]) < 0.1:
-                    break
+                        d[s1_state, a, s2_state, b] = new_val
+                        d_st = d[s1_state, :, s2_state, :]
+                        val =  max(np.max(np.min(d_st, axis=1)),np.max(np.min(d_st, axis=0)))
                 tmp_dist_matrix[s1_state, s2_state] = val
         dist_matrix = tmp_dist_matrix
         if np.mean(np.abs(dist_matrix - tmp_dist_matrix)) < 0.1:
             break
-    
-    print (dist_matrix[1][22:])
 
-    print ("Updated: ", sum1 - np.sum(dist_matrix))
-    for s1_pos, s1_state in src_env.state2idx.items():
-        for s2_pos, s2_state in tgt_env.state2idx.items():
-            for a in range(action_space):
-                for b in range(action_space):
-                    if use_reward:
-                        d[s1_state,a,s2_state,b] += reward_matrix_tmp[s1_state, a, s2_state, b]
-                    if use_wasserstein:
-                        # pdb.set_trace()
-                        if use_reward_as_d:
-                            d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], reward_matrix)
-                        elif use_manhattan_as_d:
-                            d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], manhattan_distance)
-                        elif solver:
-                            d[s1_state,a,s2_state,b] += emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], dist_matrix)
-    return d
+    return d, dist_matrix
 
 def compute_dl(d):
     """
@@ -157,21 +137,21 @@ def compute_dl(d):
     return lax_bisim_state_metric
 
 def laxBisimTransfer(S1, S2, debugging=False):
-    dl_sa = compute_d(use_reward=True, use_wasserstein=True, use_manhattan_as_d=False, solver=True)
+    dl_sa, bisim_state_metric = compute_d(use_reward=True, use_wasserstein=True, use_manhattan_as_d=False, solver=True)
     # bisim_state_metric = compute_dl(dl_sa)
-    # if debugging:
-    #     num_misclassified_states = 0  # to be used only when source and target domains are same
-    # for t in range(S2):
-    #     s_t = np.argmin(bisim_state_metric[:,t])
-    #     if debugging:
-    #         num_misclassified_states += int(t!=s_t)
-    #     print("target state: %d, matching source state: %d"%(t, s_t))
-    #     b_t = np.argmin(dl_sa[s_t, src_agent.get_best_action(s_t, src_possible_actions), t])
-    #     print("source best action: %d, target best action: %d"%(src_agent.get_best_action(s_t, src_possible_actions), b_t))
-    #     qv = src_agent.qvalues[s_t][b_t]
-    #     tgt_agent.update_qvalue(t, b_t, qv)
-    # if debugging:
-    #     print("State misclassification rate: %f percent"%(100*num_misclassified_states/S2))
+    if debugging:
+        num_misclassified_states = 0  # to be used only when source and target domains are same
+    for t in range(S2):
+        s_t = np.argmin(bisim_state_metric[:,t])
+        if debugging:
+            num_misclassified_states += int(t!=s_t)
+        print("target state: %d, matching source state: %d"%(t, s_t))
+        b_t = np.argmin(dl_sa[s_t, src_agent.get_best_action(s_t, src_possible_actions), t])
+        print("source best action: %d, target best action: %d"%(src_agent.get_best_action(s_t, src_possible_actions), b_t))
+        qv = src_agent.qvalues[s_t][b_t]
+        tgt_agent.update_qvalue(t, b_t, qv)
+    if debugging:
+        print("State misclassification rate: %f percent"%(100*num_misclassified_states/S2))
     
 laxBisimTransfer(src_state_space, tgt_state_space, debugging=True)
 
