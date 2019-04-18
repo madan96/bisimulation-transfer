@@ -1,9 +1,13 @@
+import os
+import datetime
 import math
+import matplotlib.pyplot as plt
 import numpy as np
 import pdb
 from scipy.optimize import linprog
 from scipy.spatial import distance
 from scipy.stats import wasserstein_distance
+import sys
 import time
 
 import environment
@@ -14,6 +18,12 @@ from pyemd import emd
 import cv2
 import ot
 
+log_path = "logs"
+if not os.path.isdir(log_path):
+    os.mkdir(log_path)
+
+fname = str(datetime.datetime.now())
+sys.stdout = open(log_path + "/" + fname, 'w')
 np.random.seed(712)
 
 alpha = 0.2
@@ -78,6 +88,9 @@ def compute_d(least_fixed_iters=10, threshold=0.00001, emd_func='cv2', use_manha
     """
 
     print ("EMD computed using: ", emd_func)
+    print ("Number of lfp iterations: ", least_fixed_iters)
+    print ("Threshold value: ", threshold)
+    print ("Source size: ", src_state_space, " Target size: ", tgt_state_space)
 
     if emd_func == 'pyemd':
         reward_matrix_tmp = np.zeros((src_state_space, action_space, tgt_state_space, action_space))
@@ -163,7 +176,7 @@ def compute_d(least_fixed_iters=10, threshold=0.00001, emd_func='cv2', use_manha
     return d_final, dist_matrix_final
 
 def laxBisimTransfer(S1, S2, debugging=False):
-    dl_sa, bisim_state_metric = compute_d(100, 0.0001, emd_func='pyemd', use_manhattan_as_d=False)
+    dl_sa, bisim_state_metric = compute_d(10, 0.0001, emd_func='pyemd', use_manhattan_as_d=False)
     if debugging:
         num_misclassified_states = 0  # to be used only when source and target domains are same
     for t in range(S2):
@@ -183,20 +196,33 @@ def laxBisimTransfer(S1, S2, debugging=False):
 laxBisimTransfer(src_state_space, tgt_state_space, debugging=True)
 
 tgt_env.render(tgt_agent.qvalues)
-state = tgt_env.get_state()
 
-for i in range(1000):
-    possible_actions = tgt_env.get_possible_actions()
-    action = tgt_agent.get_best_action(state, possible_actions)
-    next_state, reward, done, next_possible_states = tgt_env.step(action)
-    tgt_env.render(tgt_agent.qvalues)
 
-    next_state_possible_actions = tgt_env.get_possible_actions()
-    state = next_state
-
-    if done == True:	
-        tgt_env.reset_state()
+returns = []
+for i in range(10):
+    tgt_env.reset_state()
+    state = tgt_env.get_state()
+    score = 0
+    for j in range(100):
+        possible_actions = tgt_env.get_possible_actions()
+        action = tgt_agent.get_best_action(state, possible_actions)
+        next_state, reward, done, next_possible_states = tgt_env.step(action)
+        score += reward
         tgt_env.render(tgt_agent.qvalues)
-        time.sleep(0.1)
-        state = tgt_env.get_state()
-        continue
+
+        next_state_possible_actions = tgt_env.get_possible_actions()
+        state = next_state
+
+        if done == True:
+            tgt_env.reset_state()
+            tgt_env.render(tgt_agent.qvalues)
+            time.sleep(0.1)
+            state = tgt_env.get_state()
+            break
+
+    returns.append(score)
+
+plt.plot(returns)
+plt.ylabel('Return')
+# plt.show()
+plt.savefig(log_path + '/' + fname[:-6])
