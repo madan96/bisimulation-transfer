@@ -161,7 +161,7 @@ def compute_d(least_fixed_iters=10, threshold=0.00001, emd_func='cv2', use_manha
                             new_val = reward_matrix_tmp[s1_state, a, s2_state, b] + 0.9 * kd
                             d[s1_state, a, s2_state, b] = new_val
                             d_st = d[s1_state, :, s2_state, :]
-                            val = max(np.max(np.min(d_st, axis=1)),np.max(np.min(d_st, axis=0)))
+                    val = max(np.max(np.min(d_st, axis=1)), np.max(np.min(d_st, axis=0)))
                     tmp_dist_matrix[s1_state, s2_state] = val
             dist_matrix = tmp_dist_matrix
             if np.mean(np.abs(dist_matrix - tmp_dist_matrix)) < threshold:
