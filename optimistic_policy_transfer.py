@@ -12,6 +12,7 @@ import cv2
 
 import environment
 import agent
+import time
 
 np.random.seed(712)
 
@@ -36,20 +37,26 @@ src_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, src_sta
 # end_positions = [(2, 8)]
 # tgt_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
 
+gridH, gridW = 6, 9 
+end_positions = [(2, 6)]
+tgt_blocked_positions = [(3,0), (0, 4), (5, 4), (3, 2), (3, 3), (3, 4), (2, 4), (2, 5), (2, 7), (2, 8)]
+
 # gridH, gridW = 5, 5
 # end_positions = [(2, 3)]
 # tgt_blocked_positions = [(2, 0), (0, 2), (4, 2), (2, 2), (2, 4)]
 
-gridH, gridW = 3, 3
-end_positions = [(1, 2)]
-tgt_blocked_positions = [(2, 1)]
+# gridH, gridW = 3, 3
+# end_positions = [(1, 2)]
+# tgt_blocked_positions = [(2, 1)]
 
 tgt_env = environment.Environment(gridH, gridW, end_positions, end_rewards, tgt_blocked_positions, start_pos, default_reward)
 action_space = tgt_env.action_space
 tgt_state_space = tgt_env.state_space
 tgt_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, tgt_state_space, tgt_env.tp_matrix, tgt_blocked_positions)
+test_tgt_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, tgt_state_space, tgt_env.tp_matrix, tgt_blocked_positions)
 
 src_agent.qvalues = np.load('optimal_qvalues_8_new_prob_states.npy')
+test_tgt_agent.qvalues = np.load('optimal_qvalues_44_new_prob_states.npy')
 # tgt_qval = np.zeros((tgt_env.state_space, 4))
 
 src_possible_actions = src_env.get_possible_actions()
@@ -101,46 +108,42 @@ def compute_d_opt(use_manhattan_as_d=False, solver=True, emd_func='cv2'):
         for s2_pos, s2_state in tgt_env.state2idx.items():
             manhattan_distance[s1_state, s2_state] = distance.cityblock(s1_pos, s2_pos)
 
-    # np.fill_diagonal(reward_matrix, 0)
-    # print (reward_matrix)
 
     dist_matrix_final = np.zeros((src_state_space, tgt_state_space))
-    dist_matrix_final.fill(1000.0)
+    dist_matrix_final.fill(100.0)
     d_final = np.zeros((src_state_space, 1, tgt_state_space, action_space))
-
-    for i in range(300):
-        d = np.zeros((src_state_space, 1, tgt_state_space, action_space))
-        d.fill(1000.0)
-        dist_matrix = np.random.rand(src_state_space, tgt_state_space)
-        # dist_matrix = np.ones((src_state_space, tgt_state_space))
-        tmp_dist_matrix = np.random.rand(src_state_space, tgt_state_space)
-
+    d = np.zeros((src_state_space, 1, tgt_state_space, action_space))
+    d.fill(1000.0)
+    dist_matrix = np.zeros((src_state_space, tgt_state_space))
+    dist_matrix.fill(0.01) # 3 is a good inits
+    tmp_dist_matrix = np.zeros((src_state_space, tgt_state_space))
+    tmp_dist_matrix.fill(0.1)
+    num_iters = 5
+    for i in range(num_iters):
+        print ("Iteration: ", i, "/", num_iters, " Loss: ", np.mean(np.abs(dist_matrix_final - dist_matrix)))
+        dist_matrix_final = dist_matrix.copy()
         while True:
             for s1_pos, s1_state in src_env.state2idx.items():
                 a = src_agent.get_best_action(s1_state, src_possible_actions)
                 for s2_pos, s2_state in tgt_env.state2idx.items():
                     for b in range(action_space):
-                        # kd = wasserstein_distance(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], u_weights=dist_matrix[:,s2_state], v_weights=dist_matrix[s1_state,:])
-                        # print (kd)
-                        kd = emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], dist_matrix) # pyemd
-                        new_val = reward_matrix_tmp[s1_state, a, s2_state, b] + 0.9 * kd
+                        kd = emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], tmp_dist_matrix) # pyemd
+                        new_val = 0.1 * reward_matrix_tmp[s1_state, a, s2_state, b] + 0.9 * kd
                         d[s1_state, 0, s2_state, b] = new_val
-                        d_st = d[s1_state, 0, s2_state, :]
                         val = np.min(d[s1_state, 0, s2_state])
                     tmp_dist_matrix[s1_state, s2_state] = val
-
-            dist_matrix = tmp_dist_matrix
-            if np.mean(np.abs(dist_matrix - tmp_dist_matrix)) < 0.00001:
+            
+            if np.mean(np.abs(dist_matrix - tmp_dist_matrix)) < 0.01:
+                dist_matrix = tmp_dist_matrix.copy()
                 break
+            
+            dist_matrix = tmp_dist_matrix.copy()
+        
+    d_final = d.copy()
+    dist_matrix_final = dist_matrix.copy()
 
-        for s1_pos, s1_state in src_env.state2idx.items():
-            for s2_pos, s2_state in tgt_env.state2idx.items():
-                if dist_matrix[s1_state, s2_state] < dist_matrix_final[s1_state, s2_state]:
-                    dist_matrix_final[s1_state, s2_state] = dist_matrix[s1_state, s2_state]
-                    d_final[s1_state, 0, s2_state, :] = d[s1_state, 0, s2_state, :]
     print (np.min(dist_matrix_final), np.max(dist_matrix_final), np.mean(dist_matrix_final))
-    d_final = d
-    # print (dist_matrix_final)
+
     return d_final, dist_matrix_final
     
 def compute_dl_opt(d):
@@ -164,24 +167,32 @@ def optBisimTransfer(S1, S2):
     # bisim_state_metric = compute_dl_opt(dl_sa)
 
     lower_bound = np.zeros((S1, S2))
+    match = 0.
     for t in range (S2):
         for s in range(S1):
             lower_bound[s, t] = np.max(src_agent.qvalues[s]) - bisim_state_metric[s, t]
         s_t = np.argmax(lower_bound[:, t])
         b_t = np.argmin(dl_sa[s_t,0,t,:])
-        print("target state: %d, matching source state: %d"%(t, s_t))
         print (dl_sa[s_t, 0, t])
         b_t = np.argmin(dl_sa[s_t, 0, t])
-        print("source best action: %d, target best action: %d"%(src_agent.get_best_action(s_t, src_possible_actions), b_t))
+        gt_bt = test_tgt_agent.get_best_action(t, tgt_possible_actions)
+        if b_t == gt_bt:
+            match += 1.
         qv = 1000.0 # src_agent.qvalues[s_t][b_t]
         tgt_agent.update_qvalue(t, b_t, qv)
+    
+    accuracy = (match / float(S2)) * 100.
+    return accuracy
 
-optBisimTransfer(src_state_space, tgt_state_space)
-
+start = time.time()
+accuracy = optBisimTransfer(src_state_space, tgt_state_space)
+end = time.time()
+tgt_q = np.asarray(tgt_agent.qvalues)
+np.save('/home/rishabh/work/btp/rl-grid-world/policy/optimistic_fastemd_transfer_44.npy', tgt_q)
 tgt_env.render(tgt_agent.qvalues)
 state = tgt_env.get_state()
 
-for i in range(2000):
+for i in range(1000):
     possible_actions = tgt_env.get_possible_actions()
     action = tgt_agent.get_best_action(state, possible_actions)
     next_state, reward, done, next_possible_states = tgt_env.step(action)
@@ -196,3 +207,6 @@ for i in range(2000):
         time.sleep(0.5)
         state = tgt_env.get_state()
         continue
+
+print ("Accuracy: ", accuracy)
+print ("Transfer time: ", end - start)
