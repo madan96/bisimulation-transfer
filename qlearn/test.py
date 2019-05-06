@@ -5,20 +5,20 @@ import environment
 import agent
 
 # ------------------------------------ environment 1 Four Room - 8 states - Source Domain -----------------------------------------
-gridH, gridW = 3, 3
-start_pos = None
-end_positions = [(1, 2)]
-end_rewards = [10.0]
-blocked_positions = [(1, 1)]
-default_reward= -0.2
+# gridH, gridW = 3, 3
+# start_pos = None
+# end_positions = [(1, 2)]
+# end_rewards = [10.0]
+# blocked_positions = [(1, 1)]
+# default_reward= -0.2
 # ------------------------------------ environment 2 Four Room - 44 States - Target Domain -----------------------------------------
 
-# gridH, gridW = 5, 11 
-# start_pos = None
-# end_positions = [(2, 8)]
-# end_rewards = [10.0]
-# blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
-# default_reward= -0.2
+gridH, gridW = 6, 9 
+end_positions = [(2, 6)]
+blocked_positions = [(3,0), (0, 4), (5, 4), (3, 2), (3, 3), (3, 4), (2, 4), (2, 5), (2, 7), (2, 8)]
+start_pos = None
+end_rewards = [10.0]
+default_reward= -0.2
 
 # ------------------------------------ environment 3 -----------------------------------------
 '''
@@ -51,7 +51,7 @@ state_space = env.state_space
 agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, state_space, env.tp_matrix, blocked_positions)
 # agent = agent.EVSarsaAgent(alpha, epsilon, discount, action_space, state_space)
 
-qvalues = np.load('optimal_qvalues_8_new_prob_states.npy')
+qvalues = np.load('optimal_qvalues_44_new_prob_states.npy')
 agent.qvalues = qvalues
 
 env.render(agent.qvalues)

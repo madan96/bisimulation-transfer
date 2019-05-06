@@ -8,15 +8,22 @@ import agent
 # start_pos = None
 # end_positions = [(1, 2)]
 # end_rewards = [10.0]
-# blocked_positions = [(1, 1)]
+# blocked_positions = [(2, 2)]
 # default_reward= -0.2
 # ------------------------------------ environment 2 Four Room - 44 States - Target Domain -----------------------------------------
 
-gridH, gridW = 5, 11 
+# gridH, gridW = 6, 9 
+# end_positions = [(2, 6)]
+# blocked_positions = [(3,0), (0, 4), (5, 4), (3, 2), (3, 3), (3, 4), (2, 4), (2, 5), (2, 7), (2, 8)]
+# start_pos = None
+# end_rewards = [10.0]
+# default_reward= -0.2
+
+gridH, gridW = 6, 9 
+end_positions = [(2, 6)]
+blocked_positions = [(3,0), (0, 4), (5, 4), (3, 2), (3, 3), (3, 4), (2, 4), (2, 5), (2, 7), (2, 8), (3, 5), (4, 5), (5, 5), (3,6), (4,6), (5,6), (3,7), (4,7), (5,7), (3,8), (4,8), (5,8)]
 start_pos = None
-end_positions = [(2, 8)]
 end_rewards = [10.0]
-blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
 default_reward= -0.2
 
 # ------------------------------------ environment 3 -----------------------------------------
@@ -54,7 +61,7 @@ agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, state_space
 env.render(agent.qvalues)
 state = env.get_state()
 
-for i in range(20000):
+for i in range(15000):
 
 	possible_actions = env.get_possible_actions()
 	action = agent.get_action(state, possible_actions)
@@ -74,4 +81,4 @@ for i in range(20000):
 
 qval = np.asarray(agent.qvalues)
 print (qval.shape)
-np.save('optimal_qvalues_44_new_prob_states.npy', qval)
+np.save('optimal_qvalues_3_rooms.npy', qval)

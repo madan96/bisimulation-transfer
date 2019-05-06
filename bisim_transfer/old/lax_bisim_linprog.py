@@ -138,33 +138,32 @@ def compute_d(least_fixed_iters=10, threshold=0.00001, emd_func='cv2', use_manha
             manhattan_distance[s1_state, s2_state] = distance.cityblock(s1_pos, s2_pos)
 
     dist_matrix_final = np.random.rand(src_state_space, tgt_state_space)
-    tmp_dist_matrix = np.random.rand(src_state_space, tgt_state_space)
+    tmp_dist_matrix = np.zeros((src_state_space, tgt_state_space)) #np.random.rand(src_state_space, tgt_state_space)
     dist_matrix_final = np.zeros((src_state_space, tgt_state_space))
-    dist_matrix_final.fill(1000.0)
+    # dist_matrix_final.fill(1000.0)
     d_final.fill(1000.0)
 
     # LP Solver
     ##############################
     m = src_state_space
     n = tgt_state_space
+    A_r = np.zeros((m, m, n))
+    A_t = np.zeros((n, m, n))
+
+    for i in range(m):
+        for j in range(n):
+            A_r[i, i, j] = 1
+    
+    for i in range(n):
+        for j in range(m):
+            A_t[i, j, i] = 1
+    A = np.concatenate((A_r.reshape((m, m*n)), A_t.reshape((n, m*n))), axis=0)
+
     while True:
         for s1_pos, s1_state in src_env.state2idx.items():
             for s2_pos, s2_state in sorted(tgt_env.state2idx.items()):
                 for a in range(action_space):
                     for b in range(action_space):
-                        
-                        A_r = np.zeros((m, m, n))
-                        A_t = np.zeros((n, m, n))
-
-                        for i in range(m):
-                            for j in range(n):
-                                A_r[i, i, j] = 1
-                        
-                        for i in range(n):
-                            for j in range(m):
-                                A_t[i, j, i] = 1
-
-                        A = np.concatenate((A_r.reshape((m, m*n)), A_t.reshape((n, m*n))), axis=0)
                         p = src_env.tp_matrix[s1_state,a]
                         q = tgt_env.tp_matrix[s2_state,b]
                         b_mat = np.concatenate((p, q), axis=0)
