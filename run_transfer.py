@@ -7,10 +7,14 @@ from bisim_transfer.bisimulation import Bisimulation
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description=__doc__)
 
-
+    argparser.add_argument(
+        '--transfer',
+        default='lax',
+        type=str
+    )
     argparser.add_argument(
         '--src-env',
-        default=None,
+        default='FourSmallRooms_11',
         type=str
     )
     argparser.add_argument(
@@ -29,33 +33,38 @@ if __name__ == '__main__':
         type=int
     )
     argparser.add_argument(
-        '-f',
-        '--folder',
+        '-th',
+        '--threshold',
+        default=0.01,
+        type=float
+    )
+    argparser.add_argument(
+        '-dfk',
+        '--discount-kd',
+        default=0.9,
+        type=float
+    )
+    argparser.add_argument(
+        '-dfr',
+        '--discount-r',
+        default=0.1,
+        type=float
+    )
+    argparser.add_argument(
+        '--policy-dir',
+        default='saved_qvalues/optimal_qvalues/',
         type=str
     )
     argparser.add_argument(
-        '-e',
-        '--exp',
+        '-l',
+        '--log-dir',
+        default='logs/',
         type=str
     )
     argparser.add_argument(
-        '-vd',
-        '--val_datasets',
-        dest='validation_datasets',
-        nargs='+',
-        default=[]
-    )
-    argparser.add_argument(
-        '--no-train',
-        dest='is_training',
-        action='store_false'
-    )
-    argparser.add_argument(
-        '-de',
-        '--drive_envs',
-        dest='driving_environments',
-        nargs='+',
-        default=[]
+        '--save-dir',
+        default='saved_qvalues/transferred_qvalues/',
+        type=str
     )
     argparser.add_argument(
         '-v', '--verbose',
@@ -64,3 +73,22 @@ if __name__ == '__main__':
         help='print debug information')
 
     args = argparser.parse_args()
+
+    transfer = Bisimulation(args)
+
+    if args.transfer == 'basic':
+        transfer.bisimulation()
+    elif args.transfer == 'lax':
+        transfer.lax_bisimulation()
+    elif args.transfer == 'pess':
+        transfer.pess_bisimulation()
+    elif args.transfer == 'optimistic':
+        transfer.opt_bisimulation()
+    else:
+        raise ValueError("Provide a valid transfer metric")
+    
+    print ("Transfer Accuracy: ", transfer.accuracy)
+    transfer.render()
+    # transfer.generate_logs()
+        
+    

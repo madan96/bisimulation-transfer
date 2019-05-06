@@ -29,9 +29,6 @@ np.random.seed(712)
 alpha = 0.2
 epsilon = 0.05
 discount = 0.99
-alpha = 0.2
-epsilon = 0.05
-discount = 0.99
 
 end_rewards = [1.0]
 default_reward = 0.0

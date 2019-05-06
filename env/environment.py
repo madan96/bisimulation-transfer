@@ -5,7 +5,7 @@ import pdb
 
 class Environment(object):
     
-    def __init__(self, gridH, gridW, end_positions, end_rewards, blocked_positions, start_position, default_reward, scale=100):
+    def __init__(self, gridH, gridW, end_positions, end_rewards, blocked_positions, default_reward, start_position=None, scale=100):
         
         self.action_space = 4
         self.state_space = gridH * gridW - len(blocked_positions)	
@@ -61,15 +61,8 @@ class Environment(object):
             y, x = position		
             (w, h), _ = cv2.getTextSize(text, font, 1, 2)
             cv2.putText(self.frame, text, (int((x+0.5)*self.scale-w/2), int((y+0.5)*self.scale+h/2)), font, 1, color, 2, cv2.LINE_AA)
-        
-        # blocked_ids = []
 
-        # for p in blocked_positions:
-        # 	blocked_ids.append(self.state2idx[p])
         self.generate_tp_matrix()
-        # tp_matrix = np.delete(tp_matrix, blocked_ids, axis=0)
-        # tp_matrix = np.delete(tp_matrix, blocked_ids, axis=2)
-        # print (tp_matrix.shape)
 
     def get_num_valid_neighbors(self, pos):
         return sum([int(self.check_possible_state(neighbor))
@@ -224,7 +217,7 @@ class Environment(object):
             if position in self.end_positions or position in self.blocked_positions:
                 continue
             
-            qvalues = np.tanh(qvalues*0.1) # for vizualization only
+            qvalues = np.tanh(qvalues*0.1) # for visualization only
             
             # for each action in state cell	
                 
