@@ -9,7 +9,7 @@ from scipy.spatial import distance
 from scipy.stats import wasserstein_distance
 import sys
 import time
-
+import matplotlib.pyplot as plt
 import environment
 import agent
 
@@ -23,7 +23,7 @@ if not os.path.isdir(log_path):
     os.mkdir(log_path)
 
 fname = str(datetime.datetime.now())
-sys.stdout = open(log_path + "/" + fname, 'w')
+# sys.stdout = open(log_path + "/" + fname, 'w')
 np.random.seed(712)
 
 alpha = 0.2
@@ -33,7 +33,7 @@ alpha = 0.2
 epsilon = 0.05
 discount = 0.99
 
-end_rewards = [10.0]
+end_rewards = [1.0]
 default_reward = 0.0
 start_pos = None
 
@@ -50,21 +50,30 @@ src_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, src_sta
 # end_positions = [(2, 8)]
 # tgt_blocked_positions = [(0, 5), (2, 5), (4, 5), (2, 0), (2, 1), (2, 3), (2, 4), (2, 6), (2, 7), (2, 9), (2, 10)]
 
+# gridH, gridW = 6, 9 
+# end_positions = [(2, 6)]
+# tgt_blocked_positions = [(3,0), (0, 4), (5, 4), (3, 2), (3, 3), (3, 4), (2, 4), (2, 5), (2, 7), (2, 8)]
+
+gridH, gridW = 6, 9 
+end_positions = [(2, 6)]
+tgt_blocked_positions = [(3,0), (0, 4), (5, 4), (3, 2), (3, 3), (3, 4), (2, 4), (2, 5), (2, 7), (2, 8), (3, 5), (4, 5), (5, 5), (3,6), (4,6), (5,6), (3,7), (4,7), (5,7), (3,8), (4,8), (5,8)]
+
 # gridH, gridW = 5, 5
 # end_positions = [(2, 3)]
 # tgt_blocked_positions = [(2, 0), (0, 2), (4, 2), (2, 2), (2, 4)]
 
-gridH, gridW = 3, 3
-end_positions = [(1, 2)]
-tgt_blocked_positions = [(1, 1)]
+# gridH, gridW = 3, 3
+# end_positions = [(1, 2)]
+# tgt_blocked_positions = [(2, 21)]
 
 tgt_env = environment.Environment(gridH, gridW, end_positions, end_rewards, tgt_blocked_positions, start_pos, default_reward)
 action_space = tgt_env.action_space
 tgt_state_space = tgt_env.state_space
 tgt_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, tgt_state_space, tgt_env.tp_matrix, tgt_blocked_positions)
+test_tgt_agent = agent.QLearningAgent(alpha, epsilon, discount, action_space, tgt_state_space, tgt_env.tp_matrix, tgt_blocked_positions)
 
 src_agent.qvalues = np.load('optimal_qvalues_8_new_prob_states.npy')
-# tgt_qval = np.zeros((tgt_env.state_space, 4))
+test_tgt_agent.qvalues = np.load('optimal_qvalues_44_new_prob_states.npy')
 
 src_possible_actions = src_env.get_possible_actions()
 tgt_possible_actions = tgt_env.get_possible_actions()
@@ -134,72 +143,70 @@ def compute_d(least_fixed_iters=10, threshold=0.00001, emd_func='cv2', use_manha
 
     dist_matrix_final.fill(1000.0)
     d_final.fill(1000.0)
+    if emd_func == 'pyemd':
+        d = np.zeros((src_state_space, action_space, tgt_state_space, action_space))
+        dist_matrix = np.zeros((src_state_space, tgt_state_space))
+        dist_matrix.fill(0.01)
+        tmp_dist_matrix = np.zeros((src_state_space, tgt_state_space))
+    else:
+        d = np.zeros((src_state_space, action_space, tgt_state_space, action_space)).astype(np.float32)
+        dist_matrix = np.random.rand(src_state_space, tgt_state_space).astype(np.float32)
+        tmp_dist_matrix = np.random.rand(src_state_space, tgt_state_space).astype(np.float32)
 
     for i in range(least_fixed_iters):
-        if emd_func == 'pyemd':
-            d = np.zeros((src_state_space, action_space, tgt_state_space, action_space))
-            dist_matrix = np.random.rand(src_state_space, tgt_state_space)
-            tmp_dist_matrix = np.random.rand(src_state_space, tgt_state_space)
-        else:
-            d = np.zeros((src_state_space, action_space, tgt_state_space, action_space)).astype(np.float32)
-            dist_matrix = np.random.rand(src_state_space, tgt_state_space).astype(np.float32)
-            tmp_dist_matrix = np.random.rand(src_state_space, tgt_state_space).astype(np.float32)
-
+        print ("Iteration: ", i, "/", least_fixed_iters, " Loss: ", np.mean(np.abs(dist_matrix_final - dist_matrix)))
+        dist_matrix_final = dist_matrix.copy()
         ctr = 0
         while True:
             for s1_pos, s1_state in src_env.state2idx.items():
                 for s2_pos, s2_state in sorted(tgt_env.state2idx.items()):
                     for a in range(action_space):
                         for b in range(action_space):
-                            # kd = cv2.EMD(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], cv2.DIST_USER, cost=dist_matrix)[0] # cv2
-                            # kd, log = ot.emd2(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], dist_matrix, log=True, numItermax=100000) # ot
-                            # kd = wasserstein_distance(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b],
-                            # u_weights=dist_matrix[:,s2_state], v_weights=dist_matrix[s1_state,:]) # scipy
                             kd = emd(src_env.tp_matrix[s1_state,a], tgt_env.tp_matrix[s2_state,b], dist_matrix) # pyemd
-                            # if log['result_code'] == 0:
-                            #     continue
-                            new_val = reward_matrix_tmp[s1_state, a, s2_state, b] + 0.9 * kd
+                            new_val = 0.1 * reward_matrix_tmp[s1_state, a, s2_state, b] + 0.9 * kd
                             d[s1_state, a, s2_state, b] = new_val
                             d_st = d[s1_state, :, s2_state, :]
                     val = max(np.max(np.min(d_st, axis=1)), np.max(np.min(d_st, axis=0)))
                     tmp_dist_matrix[s1_state, s2_state] = val
-            dist_matrix = tmp_dist_matrix
-            if np.mean(np.abs(dist_matrix - tmp_dist_matrix)) < threshold:
-                break
 
-        for s1_pos, s1_state in src_env.state2idx.items():
-            for s2_pos, s2_state in tgt_env.state2idx.items():
-                if dist_matrix[s1_state, s2_state] < dist_matrix_final[s1_state, s2_state]:
-                    dist_matrix_final[s1_state, s2_state] = dist_matrix[s1_state, s2_state]
-                    d_final[s1_state, :, s2_state, :] = d[s1_state, :, s2_state, :]
+            if np.mean(np.abs(dist_matrix - tmp_dist_matrix)) < threshold:
+                dist_matrix = tmp_dist_matrix.copy()
+                break
+            
+            dist_matrix = tmp_dist_matrix.copy()
+
+    dist_matrix_final = dist_matrix.copy()
+    d_final = d.copy()
 
     return d_final, dist_matrix_final
 
 def laxBisimTransfer(S1, S2, debugging=False):
-    dl_sa, bisim_state_metric = compute_d(10, 0.0001, emd_func='pyemd', use_manhattan_as_d=False)
-    if debugging:
-        num_misclassified_states = 0  # to be used only when source and target domains are same
+    dl_sa, bisim_state_metric = compute_d(5, 0.01, emd_func='pyemd', use_manhattan_as_d=False)
+    plt.imshow(bisim_state_metric, cmap='flag' )
+    plt.savefig('/home/rishabh/Pictures/bisimulation/lax/lax_dm_obs_' + str(tgt_blocked_positions[0][0]) + str(tgt_blocked_positions[0][1]) + '.png')
+    # plt.show()
+    match = 0.
     for t in range(S2):
         s_t = np.argmin(bisim_state_metric[:,t])
-        if debugging:
-            num_misclassified_states += int(t!=s_t)
-        print("target state: %d, matching source state: %d" % (t, s_t))
         print ("s: ", bisim_state_metric[:,t])
         b_t = np.argmin(dl_sa[s_t, src_agent.get_best_action(s_t, src_possible_actions), t])
+        gt_bt = test_tgt_agent.get_best_action(t, tgt_possible_actions)
         print ("sa: ", dl_sa[s_t, src_agent.get_best_action(s_t, src_possible_actions), t])
-        print("source best action: %d, target best action: %d" % (src_agent.get_best_action(s_t, src_possible_actions), b_t))
-        qv = 1000.0 #src_agent.qvalues[s_t][src_agent.get_best_action(s_t, src_possible_actions)] #[b_t]
+        qv = 1000.0
         tgt_agent.update_qvalue(t, b_t, qv)
-    if debugging:
-        print("State misclassification rate: %f percent" % (100 * num_misclassified_states / S2))
-    
-laxBisimTransfer(src_state_space, tgt_state_space, debugging=True)
+        if gt_bt == b_t:
+            match += 1.
+    accuracy = (match / S2) * 100.
+    return accuracy
+
+start = time.time()
+accuracy = laxBisimTransfer(src_state_space, tgt_state_space, debugging=True)
+end = time.time()
 
 tgt_env.render(tgt_agent.qvalues)
 
-
 returns = []
-for i in range(10):
+for i in range(100):
     tgt_env.reset_state()
     state = tgt_env.get_state()
     score = 0
@@ -222,6 +229,8 @@ for i in range(10):
 
     returns.append(score)
 
+print ("Accuracy: ", accuracy)
+print ("Transfer time: ", end - start)
 plt.plot(returns)
 plt.ylabel('Return')
 # plt.show()
