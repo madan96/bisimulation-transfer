@@ -2,7 +2,7 @@ import os
 import sys
 import argparse
 
-from bisim_transfer.bisimulation import Bisimulation
+from bisim_transfer.bisimulation import *
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser(description=__doc__)
@@ -74,21 +74,22 @@ if __name__ == '__main__':
 
     args = argparser.parse_args()
 
-    transfer = Bisimulation(args)
-
     if args.transfer == 'basic':
-        transfer.bisimulation()
+        bisimulation = LaxBisimulation(args)
     elif args.transfer == 'lax':
-        transfer.lax_bisimulation()
+        bisimulation = LaxBisimulation(args)
     elif args.transfer == 'pess':
-        transfer.pess_bisimulation()
+        bisimulation = PessBisimulation(args)
     elif args.transfer == 'optimistic':
-        transfer.opt_bisimulation()
+        bisimulation = OptBisimulation(args)
     else:
         raise ValueError("Provide a valid transfer metric")
     
-    print ("Transfer Accuracy: ", transfer.accuracy)
-    transfer.render()
-    # transfer.generate_logs()
+    bisimulation.execute_transfer()
+
+    bisimulation.render()
+    
+    print ("Transfer Accuracy: ", bisimulation.accuracy)
+
         
     
