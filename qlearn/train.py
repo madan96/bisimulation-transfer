@@ -33,4 +33,6 @@ def train(opts):
 			state = env.get_state()
 			continue
 
+	if not os.path.exists(opts.policy_dir):
+		os.makedirs(opts.policy_dir)
 	np.save(os.path.join(opts.policy_dir, opts.env_name + '.npy'), np.asarray(agent.qvalues))

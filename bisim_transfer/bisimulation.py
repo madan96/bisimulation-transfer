@@ -16,7 +16,12 @@ alpha = 0.2
 epsilon = 0.05
 discount = 0.99
 
+# TODO: Implement basic and pessimistic bisimulation
+
 class LaxBisimulation(Bisimulation):
+    """
+    Bisimulation class for Lax-Bisimulation transfer method
+    """
     def solver_lp(self):
         for s1_pos, s1_state in self.src_env.state2idx.items():
             for s2_pos, s2_state in sorted(self.tgt_env.state2idx.items()):
@@ -82,6 +87,8 @@ class LaxBisimulation(Bisimulation):
             self.transferred_agent.update_qvalue(t, b_t, qv)
             if gt_bt == b_t:
                 match += 1.
+        if not os.path.exists(self.opts.save_dir):
+            os.makedirs(self.opts.save_dir)
         np.save(os.path.join(os.path.join(self.opts.save_dir, 'solver_' + self.opts.solver), self.opts.tgt_env + '.npy'), np.asarray(self.transferred_agent.qvalues))
         self.accuracy = (match / self.tgt_env.state_space) * 100.
 
@@ -171,5 +178,3 @@ class OptBisimulation(Bisimulation):
             self.transferred_agent.update_qvalue(t, b_t, qv)
         
         self.accuracy = (match / float(self.tgt_env.state_space)) * 100.
-
-
