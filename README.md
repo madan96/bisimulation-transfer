@@ -1,6 +1,6 @@
 # Bisimulation Policy Transfer
 
-An attempt at the python implementation of the paper **Using Bisimulation for Policy Transfer in MDPs** <br />
+Python implementation of the paper **Using Bisimulation for Policy Transfer in MDPs** <br />
 **Note**: This repository is still under development.
 
 ## Getting Started
@@ -31,6 +31,13 @@ Policy transfer result for transfer between FourSmallRoom env to FourLargeRoom e
 Policy transfer result for transfer between FourSmallRoom env to ThreeLargeRoom env
 ![FourSmalltoThreeLarge](results/4to3room.png)
 
-### References
+## References
 * Using Bisimulation for Policy Transfer in MDPs [[Paper](https://dl.acm.org/citation.cfm?id=2898777)]
 * Custom RL-Gridworld repo [Link](https://github.com/WojciechMormul/rl-grid-world)
+
+## Credits
+[Rishabh Madan](https://github.com/madan96) <br/>
+[Anirban Santara](https://github.com/santara) <br/>
+[Pabitra Mitra](http://cse.iitkgp.ac.in/~pabitra/) <br/>
+[Balaraman Ravindran](https://www.cse.iitm.ac.in/~ravi/)
+
