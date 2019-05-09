@@ -25,9 +25,12 @@ Run Policy Transfer for 8 to 44 states using
 
 ## Results
 
-Policy transfer result for transfer between FourSmallRoom env to FourLargeRoom env
+Policy transfer result for transfer between FourSmallRoom env to FourLargeRoom env <br/>
+![FourSmalltoFourLarge](results/4smallto4large.png)
 
 Policy transfer result for transfer between FourSmallRoom env to ThreeLargeRoom env
+![FourSmalltoThreeLarge](results/4to3room.png)
 
 ### References
-Using Bisimulation for Policy Transfer in MDPs [[Paper](https://dl.acm.org/citation.cfm?id=2898777)]
+* Using Bisimulation for Policy Transfer in MDPs [[Paper](https://dl.acm.org/citation.cfm?id=2898777)]
+* Custom RL-Gridworld repo [Link](https://github.com/WojciechMormul/rl-grid-world)
