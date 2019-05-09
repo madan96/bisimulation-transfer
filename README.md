@@ -33,7 +33,7 @@ Policy transfer result for transfer between FourSmallRoom env to ThreeLargeRoom 
 
 ## References
 * Using Bisimulation for Policy Transfer in MDPs [[Paper](https://dl.acm.org/citation.cfm?id=2898777)]
-* Custom RL-Gridworld repo [Link](https://github.com/WojciechMormul/rl-grid-world)
+* Custom RL-Gridworld repo [[Link](https://github.com/WojciechMormul/rl-grid-world)]
 
 ## Credits
 [Rishabh Madan](https://github.com/madan96) <br/>
