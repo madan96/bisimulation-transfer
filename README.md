@@ -1,6 +1,6 @@
 # Bisimulation Policy Transfer
 
-Python implementation of the paper **Using Bisimulation for Policy Transfer in MDPs** <br />
+Python implementation of the paper Castro et al. [**Using bisimulation for policy transfer in MDPs**](https://dl.acm.org/citation.cfm?id=2898777) AAAI-2010 <br />
 **Note**: This repository is still under development.
 
 ## Getting Started
